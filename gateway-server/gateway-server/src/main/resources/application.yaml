@@ -1,0 +1,63 @@
+spring:
+  application:
+    name: SALON-GATEWAY-SERVICE
+
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+
+      routes:
+
+        - id: SALON-BOOKING-SERVICE
+          uri: lb://SALON-BOOKING-SERVICE
+          predicates:
+            - Path=/api/bookings/**
+
+        - id: SALON-PAYMENT-SERVICE
+          uri: lb://SALON-PAYMENT-SERVICE
+          predicates:
+            - Path=/api/payments/**
+
+        - id: SALON-CATEGORY-SERVICE
+          uri: lb://SALON-CATEGORY-SERVICE
+          predicates:
+            - Path=/api/categories/**
+
+        - id: SALON-SALON-SERVICE
+          uri: lb://SALON-SALON-SERVICE
+          predicates:
+            - Path=/api/salons/**,/api/admin/salons/**,/api/admin/**
+
+        - id: SALON-SERVICE-OFFERING
+          uri: lb://SALON-SERVICE-OFFERING
+          predicates:
+            - Path=/api/service-offering/salon-owner/**,/api/service_offering/**
+
+        - id: SALON-USER-SERVICE
+          uri: lb://SALON-USER-SERVICE
+          predicates:
+            - Path=/api/users/**
+
+    compatibility-verifier:
+      enabled: false
+
+server:
+  port: 5000
+
+eureka:
+  instance:
+    prefer-ip-address: true
+
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://localhost:8070/eureka/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"

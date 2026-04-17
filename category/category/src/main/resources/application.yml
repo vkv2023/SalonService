@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: salon-category-service
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/salon_category_service
+    username: root
+    password: "Calm032@@"   # quoted because of special characters
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  sql:
+    init:
+      mode: always
+
+server:
+  port: 5003
+
+# Security (Deprecated in Spring Boot 3+)
+security:
+  basic:
+    enable: false
+  ignored: /**
+
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://localhost:8070/eureka/

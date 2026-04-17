@@ -1,0 +1,37 @@
+spring:
+  application:
+    name: salon-booking-service
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/salon_booking_service
+    username: root
+    password: "Calm032@@"
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  sql:
+    init:
+      mode: always
+
+server:
+  port: 5005
+
+# Security (Spring Boot 1.x / early 2.x style — deprecated in newer versions)
+security:
+  basic:
+    enable: false
+  ignored: /**
+
+
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://localhost:8070/eureka/
