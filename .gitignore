@@ -1,10 +1,8 @@
-.env
-.env.example
-.env.migration.example
+*/.env
+*/.env.example
+*/.env.migration.example
 /node_modules
 /prisma/migrations
-.idea
-.vscode
 
 HELP.md
 target/
