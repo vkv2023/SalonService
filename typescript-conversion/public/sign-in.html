@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Salon Auth</title>
+    <link rel="stylesheet" href="/sign-in.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="card">
+        <h1>Salon Auth</h1>
+        <p class="subtitle">Clerk handles identity. Your backend stores the app role and the signed-in user record.</p>
+
+        <section id="clerk-section" class="panel active">
+          <div class="cta-row">
+            <button id="clerk-sign-in" class="cta" type="button">Continue with Clerk</button>
+            <button id="clerk-sign-up" class="secondary" type="button">Create Clerk Account</button>
+          </div>
+          <div id="clerk-empty" class="empty-state">Waiting for Clerk session...</div>
+        </section>
+
+        <section id="profile-section" class="panel hidden">
+          <h2>Complete your profile</h2>
+          <p class="helper">This step links the Clerk session to your app user and saves the role in Neon.</p>
+
+          <form id="profile-form" novalidate>
+            <label for="profile-first-name">First Name</label>
+            <input id="profile-first-name" name="firstName" type="text" required />
+
+            <label for="profile-last-name">Last Name</label>
+            <input id="profile-last-name" name="lastName" type="text" required />
+
+            <label for="profile-email">Email</label>
+            <input id="profile-email" name="email" type="email" required />
+
+            <label for="profile-username">Username</label>
+            <input id="profile-username" name="username" type="text" required />
+
+            <label for="profile-role">Role</label>
+            <select id="profile-role" name="role" required>
+              <option value="CUSTOMER">CUSTOMER</option>
+              <option value="ADMIN">ADMIN</option>
+              <option value="SALON_OWNER">SALON_OWNER</option>
+            </select>
+
+            <label for="profile-phone">Phone</label>
+            <input id="profile-phone" name="phone" type="text" />
+
+            <button class="cta" type="submit">Save Profile</button>
+          </form>
+        </section>
+
+        <section id="legacy-section" class="panel hidden">
+          <h2>Legacy fallback</h2>
+          <p class="helper">Use this only when AUTH_MODE is not Clerk.</p>
+
+          <form id="legacy-signin-form" novalidate>
+            <label for="legacy-user-id">User Id</label>
+            <input id="legacy-user-id" name="userId" type="number" min="1" required />
+
+            <label for="legacy-role">Role</label>
+            <select id="legacy-role" name="role" required>
+              <option value="CUSTOMER">CUSTOMER</option>
+              <option value="ADMIN">ADMIN</option>
+              <option value="SALON_OWNER">SALON_OWNER</option>
+            </select>
+
+            <button class="cta" type="submit">Sign In</button>
+          </form>
+        </section>
+
+        <section class="result-wrap" aria-live="polite">
+          <h2>Result</h2>
+          <pre id="result">No requests yet.</pre>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="/sign-in.js"></script>
+  </body>
+</html>

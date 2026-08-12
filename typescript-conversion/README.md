@@ -17,20 +17,21 @@ The app runs one service at a time using `SERVICE_NAME`, so it can be deployed a
 
 1. Copy `.env.example` to `.env`.
 2. Set `DATABASE_URL` to your Neon Postgres URL.
-3. Install dependencies:
+3. Set `CLERK_PUBLISHABLE_KEY`, `CLERK_ISSUER`, and `CLERK_AUDIENCE` for Clerk mode.
+4. Install dependencies:
 
 ```bash
 npm install
 ```
 
-4. Generate Prisma client and create schema in Neon:
+5. Generate Prisma client and create schema in Neon:
 
 ```bash
 npm run prisma:generate
 npm run prisma:migrate -- --name init
 ```
 
-5. Start a service (example: user service on port 5001):
+6. Start a service (example: user service on port 5001):
 
 ```bash
 set SERVICE_NAME=user
@@ -44,6 +45,18 @@ For PowerShell:
 $env:SERVICE_NAME="user"
 $env:PORT="5001"
 npm run dev
+```
+
+To launch and open the sign-in page directly on Windows CMD:
+
+```bash
+npm run dev:signin
+```
+
+Sign-in page URL:
+
+```text
+http://localhost:5001/sign-in
 ```
 
 ## Service names
@@ -60,10 +73,13 @@ npm run dev
 - Services now validate Clerk JWT directly (Authorization: Bearer token).
 - User identity is linked in Neon via `user.clerkId`.
 - Role checks still use your existing roles: CUSTOMER, ADMIN, SALON_OWNER.
+- The browser sign-in page loads Clerk JS, then syncs the authenticated Clerk user into the backend profile table.
+- The page stores the app login payload in `localStorage` under `salonAuth` after successful login.
 
 ### Required auth env
 
 - `AUTH_MODE`: clerk | legacy | hybrid
+- `CLERK_PUBLISHABLE_KEY`
 - `CLERK_ISSUER` (or `CLERK_ISSUER_URL`)
 - `CLERK_AUDIENCE`
 - `CLERK_JWKS_URL` (optional; auto-derived from issuer if omitted)

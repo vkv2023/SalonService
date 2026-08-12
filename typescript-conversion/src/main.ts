@@ -1,6 +1,8 @@
 import cors from "cors";
 import dotenv from "dotenv";
-import express from "express";
+import express, { type Request } from "express";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { bookingRouter } from "./services/booking.js";
 import { categoryRouter } from "./services/category.js";
 import { paymentRouter } from "./services/payment.js";
@@ -33,6 +35,7 @@ function validateAuthConfig() {
     throw new Error("Missing required environment variable: CLERK_ISSUER or CLERK_ISSUER_URL");
   }
 
+  ensureEnv("CLERK_PUBLISHABLE_KEY");
   ensureEnv("CLERK_AUDIENCE");
 }
 
@@ -41,12 +44,31 @@ validateAuthConfig();
 const app = express();
 const port = Number(process.env.PORT ?? 5001);
 const serviceName = process.env.SERVICE_NAME ?? "user";
+const authMode = (process.env.AUTH_MODE ?? "clerk").toLowerCase();
+const clerkPublishableKey = process.env.CLERK_PUBLISHABLE_KEY ?? "";
+const clerkIssuer = process.env.CLERK_ISSUER ?? process.env.CLERK_ISSUER_URL ?? "";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const publicDir = path.resolve(__dirname, "..", "public");
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static(publicDir));
 
-app.get("/health", (_req, res) => {
+app.get("/health", (_req: Request, res: any) => {
   res.json({ status: "UP", serviceName });
+});
+
+app.get("/api/public-config", (_req: Request, res: any) => {
+  res.json({
+    authMode,
+    clerkPublishableKey,
+    clerkIssuer
+  });
+});
+
+app.get(["/", "/sign-in"], (_req: Request, res: any) => {
+  res.sendFile(path.join(publicDir, "sign-in.html"));
 });
 
 switch (serviceName) {

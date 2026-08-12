@@ -29,20 +29,76 @@ const signupSchema = z.object({
   phone: z.string().optional()
 });
 
+const authMode = (process.env.AUTH_MODE ?? "clerk").toLowerCase();
+
+function parseLegacyAuth(req: AuthedRequest): { userId: number; role: z.infer<typeof roleEnum> } | null {
+  const userId = Number(req.header("x-user-id"));
+  const roleHeader = req.header("x-user-role");
+
+  if (!Number.isFinite(userId) || !roleHeader) {
+    return null;
+  }
+
+  const role = roleHeader.toUpperCase();
+  if (!roleEnum.safeParse(role).success) {
+    return null;
+  }
+
+  return {
+    userId,
+    role: role as z.infer<typeof roleEnum>
+  };
+}
+
+async function resolveAuthContext(req: AuthedRequest): Promise<
+  | { mode: "legacy"; userId: number; role: z.infer<typeof roleEnum> }
+  | { mode: "clerk"; clerkId: string; email?: string }
+  | null
+> {
+  if (authMode === "legacy" || authMode === "hybrid") {
+    const legacyAuth = parseLegacyAuth(req);
+    if (legacyAuth) {
+      return {
+        mode: "legacy",
+        userId: legacyAuth.userId,
+        role: legacyAuth.role
+      };
+    }
+
+    if (authMode === "legacy") {
+      return null;
+    }
+  }
+
+  const clerkSession = await verifyClerkTokenFromRequest(req).catch(() => null);
+  if (!clerkSession) {
+    return null;
+  }
+
+  return {
+    mode: "clerk",
+    clerkId: clerkSession.clerkId,
+    email: clerkSession.email
+  };
+}
+
 userRouter.post("/api/auth/signup", async (req: AuthedRequest, res: Response) => {
   const parsed = signupSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ message: "Invalid signup payload" });
   }
 
-  const clerkSession = await verifyClerkTokenFromRequest(req).catch(() => null);
-  if (!clerkSession) {
+  const authContext = await resolveAuthContext(req);
+  if (!authContext) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
   const fullName = `${parsed.data.firstName} ${parsed.data.lastName}`;
 
-  let user = await prisma.user.findUnique({ where: { clerkId: clerkSession.clerkId } });
+  let user =
+    authContext.mode === "clerk"
+      ? await prisma.user.findUnique({ where: { clerkId: authContext.clerkId } })
+      : await prisma.user.findUnique({ where: { id: authContext.userId } });
 
   if (!user) {
     user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
@@ -56,7 +112,7 @@ userRouter.post("/api/auth/signup", async (req: AuthedRequest, res: Response) =>
     user = await prisma.user.update({
       where: { id: user.id },
       data: {
-        clerkId: user.clerkId ?? clerkSession.clerkId,
+        clerkId: authContext.mode === "clerk" ? authContext.clerkId : user.clerkId,
         fullName,
         username: parsed.data.username,
         fname: parsed.data.firstName,
@@ -70,7 +126,7 @@ userRouter.post("/api/auth/signup", async (req: AuthedRequest, res: Response) =>
   } else {
     user = await prisma.user.create({
       data: {
-        clerkId: clerkSession.clerkId,
+        clerkId: authContext.mode === "clerk" ? authContext.clerkId : undefined,
         username: parsed.data.username,
         email: parsed.data.email,
         role: parsed.data.role,
@@ -92,20 +148,23 @@ userRouter.post("/api/auth/signup", async (req: AuthedRequest, res: Response) =>
 });
 
 userRouter.post("/api/auth/login", async (req: AuthedRequest, res: Response) => {
-  const clerkSession = await verifyClerkTokenFromRequest(req).catch(() => null);
-  if (!clerkSession) {
+  const authContext = await resolveAuthContext(req);
+  if (!authContext) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
-  let user = await prisma.user.findUnique({ where: { clerkId: clerkSession.clerkId } });
+  let user =
+    authContext.mode === "clerk"
+      ? await prisma.user.findUnique({ where: { clerkId: authContext.clerkId } })
+      : await prisma.user.findUnique({ where: { id: authContext.userId } });
 
-  if (!user && clerkSession.email) {
-    const existingByEmail = await prisma.user.findUnique({ where: { email: clerkSession.email } });
+  if (!user && authContext.mode === "clerk" && authContext.email) {
+    const existingByEmail = await prisma.user.findUnique({ where: { email: authContext.email } });
     if (existingByEmail) {
       user = await prisma.user.update({
         where: { id: existingByEmail.id },
         data: {
-          clerkId: clerkSession.clerkId,
+          clerkId: authContext.clerkId,
           password: null
         }
       });
