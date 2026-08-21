@@ -35,6 +35,9 @@ async function migrateUsers() {
 
     for (const row of rows) {
       try {
+        const normalizedRole = (row.role?.toUpperCase?.() || "CUSTOMER") as "CUSTOMER" | "ADMIN" | "SALON_OWNER";
+        const approvalStatus = normalizedRole === "SALON_OWNER" ? "PENDING" : "APPROVED";
+
         await prisma.user.upsert({
           where: { email: row.email },
           update: {
@@ -43,8 +46,8 @@ async function migrateUsers() {
             fname: row.fname,
             lname: row.lname || null,
             phone: row.phone || null,
-            role:
-              row.role?.toUpperCase() || "CUSTOMER",
+            role: normalizedRole,
+            approvalStatus,
             updatedAt: new Date(row.updated_at),
           },
           create: {
@@ -55,8 +58,8 @@ async function migrateUsers() {
             lname: row.lname || null,
             email: row.email,
             phone: row.phone || null,
-            role:
-              row.role?.toUpperCase() || "CUSTOMER",
+            role: normalizedRole,
+            approvalStatus,
             password: row.password || null,
             createdAt: new Date(row.created_at),
           },

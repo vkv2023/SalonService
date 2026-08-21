@@ -10,6 +10,9 @@
     <main class="page">
       <section class="card">
         <h1>Salon Auth</h1>
+        <div id="success-banner" class="success-banner hidden" aria-live="polite">
+          Account created. Please sign in.
+        </div>
         <p class="subtitle">Clerk handles identity. Your backend stores the app role and the signed-in user record.</p>
 
         <section id="clerk-section" class="panel active">
@@ -22,7 +25,7 @@
 
         <section id="profile-section" class="panel hidden">
           <h2>Complete your profile</h2>
-          <p class="helper">This step links the Clerk session to your app user and saves the role in Neon.</p>
+          <p class="helper">This step links the Clerk session to your app user and saves the role in Neon. Salon owners are kept pending until an admin approves them.</p>
 
           <form id="profile-form" novalidate>
             <label for="profile-first-name">First Name</label>

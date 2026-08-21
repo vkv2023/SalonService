@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import { prisma } from "../shared/prisma.js";
-import { requireAuth, requireRole, type AuthedRequest } from "../shared/auth.js";
+import { requireApprovedOwner, requireAuth, requireRole, type AuthedRequest } from "../shared/auth.js";
 
 export const salonRouter = Router();
 
@@ -20,6 +20,7 @@ salonRouter.post(
   "/api/salons",
   requireAuth,
   requireRole(["SALON_OWNER", "ADMIN"]),
+  requireApprovedOwner,
   async (req: AuthedRequest, res: Response) => {
   const parsed = salonSchema.safeParse(req.body);
   if (!parsed.success || !req.authUser) {
@@ -46,6 +47,7 @@ salonRouter.patch(
   "/api/salons/:salonId",
   requireAuth,
   requireRole(["SALON_OWNER", "ADMIN"]),
+  requireApprovedOwner,
   async (req: AuthedRequest, res: Response) => {
   const salonId = Number(req.params.salonId);
   const existing = await prisma.salon.findUnique({ where: { id: salonId } });

@@ -59,6 +59,16 @@ Sign-in page URL:
 http://localhost:5001/sign-in
 ```
 
+### Browser note for Clerk sign-in
+
+- Preferred: run sign-in in a normal browser (Chrome/Edge/Firefox).
+- Some embedded browsers (for example VS Code integrated browser) may block Clerk SDK scripts.
+- If Clerk SDK cannot load, the page uses a fallback flow:
+  - Redirect to Clerk using your `CLERK_ISSUER`
+  - Return to `/sign-in` with a Clerk token in URL params
+  - Exchange that token with backend `/api/auth/login`
+- In fallback mode, complete sign-in first, then return to `/sign-in` to finish app session sync.
+
 ## Service names
 
 - `user`
@@ -73,7 +83,8 @@ http://localhost:5001/sign-in
 - Services now validate Clerk JWT directly (Authorization: Bearer token).
 - User identity is linked in Neon via `user.clerkId`.
 - Role checks still use your existing roles: CUSTOMER, ADMIN, SALON_OWNER.
-- The browser sign-in page loads Clerk JS, then syncs the authenticated Clerk user into the backend profile table.
+- The browser sign-in page tries Clerk JS first and falls back to redirect-token mode if Clerk SDK cannot be loaded.
+- After Clerk auth returns to `/sign-in`, the page syncs the authenticated user into the backend profile table.
 - The page stores the app login payload in `localStorage` under `salonAuth` after successful login.
 
 ### Required auth env

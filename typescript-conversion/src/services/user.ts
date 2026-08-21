@@ -7,6 +7,7 @@ import type { AuthedRequest } from "../shared/auth.js";
 export const userRouter = Router();
 
 const roleEnum = z.enum(["CUSTOMER", "ADMIN", "SALON_OWNER"]);
+const approvalStatusEnum = z.enum(["PENDING", "APPROVED", "REJECTED"]);
 
 const userSchema = z.object({
   fullName: z.string().optional(),
@@ -16,6 +17,7 @@ const userSchema = z.object({
   email: z.string().email(),
   phone: z.string().optional(),
   role: roleEnum,
+  approvalStatus: approvalStatusEnum.optional(),
   password: z.string().optional(),
   clerkId: z.string().optional()
 });
@@ -94,6 +96,8 @@ userRouter.post("/api/auth/signup", async (req: AuthedRequest, res: Response) =>
   }
 
   const fullName = `${parsed.data.firstName} ${parsed.data.lastName}`;
+  const nextRole = parsed.data.role;
+  const nextApprovalStatus = nextRole === "SALON_OWNER" ? "PENDING" : "APPROVED";
 
   let user =
     authContext.mode === "clerk"
@@ -119,7 +123,8 @@ userRouter.post("/api/auth/signup", async (req: AuthedRequest, res: Response) =>
         lname: parsed.data.lastName,
         email: parsed.data.email,
         phone: parsed.data.phone,
-        role: parsed.data.role,
+        role: nextRole,
+        approvalStatus: nextApprovalStatus,
         password: null
       }
     });
@@ -129,7 +134,8 @@ userRouter.post("/api/auth/signup", async (req: AuthedRequest, res: Response) =>
         clerkId: authContext.mode === "clerk" ? authContext.clerkId : undefined,
         username: parsed.data.username,
         email: parsed.data.email,
-        role: parsed.data.role,
+        role: nextRole,
+        approvalStatus: nextApprovalStatus,
         fullName,
         fname: parsed.data.firstName,
         lname: parsed.data.lastName,
@@ -140,8 +146,12 @@ userRouter.post("/api/auth/signup", async (req: AuthedRequest, res: Response) =>
   }
 
   res.json({
-    message: "User registered Successfully!",
+    message:
+      nextRole === "SALON_OWNER"
+        ? "Owner registration submitted for admin approval."
+        : "User registered Successfully!",
     userRole: user.role,
+    approvalStatus: user.approvalStatus,
     userId: user.id,
     clerkId: user.clerkId
   });
@@ -177,9 +187,16 @@ userRouter.post("/api/auth/login", async (req: AuthedRequest, res: Response) => 
     });
   }
 
+  if (user.role === "SALON_OWNER" && user.approvalStatus !== "APPROVED") {
+    return res.status(403).json({
+      message: "Your salon owner account is pending admin approval."
+    });
+  }
+
   res.json({
     message: "Login Success!",
     userRole: user.role,
+    approvalStatus: user.approvalStatus,
     userId: user.id,
     clerkId: user.clerkId
   });
@@ -191,6 +208,68 @@ userRouter.get(
   res.status(410).json({
     message: "Refresh tokens are managed by Clerk SDK. This endpoint is deprecated."
   });
+  }
+);
+
+userRouter.get(
+  "/api/admin/owner-requests",
+  requireAuth,
+  requireRole(["ADMIN"]),
+  async (_req: AuthedRequest, res: Response) => {
+    const pendingOwners = await prisma.user.findMany({
+      where: {
+        role: "SALON_OWNER",
+        approvalStatus: "PENDING"
+      }
+    });
+
+    res.json(pendingOwners);
+  }
+);
+
+userRouter.patch(
+  "/api/admin/users/:id/approve",
+  requireAuth,
+  requireRole(["ADMIN"]),
+  async (req: AuthedRequest, res: Response) => {
+    const id = Number(req.params.id);
+    const existing = await prisma.user.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ message: `User not found with id:${id}` });
+    }
+    if (existing.role !== "SALON_OWNER") {
+      return res.status(400).json({ message: "Only salon owner accounts can be approved." });
+    }
+
+    const user = await prisma.user.update({
+      where: { id },
+      data: { approvalStatus: "APPROVED" }
+    });
+
+    res.json({ message: "Owner approved successfully.", user });
+  }
+);
+
+userRouter.patch(
+  "/api/admin/users/:id/reject",
+  requireAuth,
+  requireRole(["ADMIN"]),
+  async (req: AuthedRequest, res: Response) => {
+    const id = Number(req.params.id);
+    const existing = await prisma.user.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ message: `User not found with id:${id}` });
+    }
+    if (existing.role !== "SALON_OWNER") {
+      return res.status(400).json({ message: "Only salon owner accounts can be rejected." });
+    }
+
+    const user = await prisma.user.update({
+      where: { id },
+      data: { approvalStatus: "REJECTED" }
+    });
+
+    res.json({ message: "Owner rejected successfully.", user });
   }
 );
 

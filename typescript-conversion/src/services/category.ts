@@ -1,7 +1,7 @@
 import { Router, type Response } from "express";
 import { z } from "zod";
 import { prisma } from "../shared/prisma.js";
-import { requireAuth, requireRole, type AuthedRequest } from "../shared/auth.js";
+import { requireApprovedOwner, requireAuth, requireRole, type AuthedRequest } from "../shared/auth.js";
 
 export const categoryRouter = Router();
 
@@ -30,6 +30,7 @@ categoryRouter.post(
   "/api/categories/salon-owner",
   requireAuth,
   requireRole(["SALON_OWNER", "ADMIN"]),
+  requireApprovedOwner,
   async (req: AuthedRequest, res: Response) => {
     const parsed = saveCategorySchema.safeParse(req.body);
     if (!parsed.success) {
@@ -45,6 +46,7 @@ categoryRouter.delete(
   "/api/categories/salon-owner/:id",
   requireAuth,
   requireRole(["SALON_OWNER", "ADMIN"]),
+  requireApprovedOwner,
   async (req: AuthedRequest, res: Response) => {
     const id = Number(req.params.id);
     const salonId = Number(req.query.salonId);

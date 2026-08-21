@@ -38,7 +38,7 @@ spring:
         - id: SALON-USER-SERVICE
           uri: lb://SALON-USER-SERVICE
           predicates:
-            - Path=/api/users/**
+            - Path=/api/users/**,/api/auth/**
 
     compatibility-verifier:
       enabled: false

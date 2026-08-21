@@ -11,7 +11,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
-    "migrate:data": "tsx src/scripts/migrate-mysql-to-neon.ts"
+    "migrate:data": "tsx src/scripts/migrate-mysql-to-neon.ts",
+    "bootstrap:admin": "tsx src/scripts/bootstrap-admin.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.12.0",

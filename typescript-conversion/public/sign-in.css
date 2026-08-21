@@ -93,6 +93,21 @@ h1 {
   background: #fbfdff;
 }
 
+.success-banner {
+  margin: 8px 0 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #e7f7ef;
+  color: #166534;
+  border: 1px solid #b8e0c8;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.success-banner.hidden {
+  display: none;
+}
+
 form {
   display: grid;
   grid-template-columns: 1fr;

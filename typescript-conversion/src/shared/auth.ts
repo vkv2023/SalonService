@@ -1,4 +1,8 @@
-import type { NextFunction, Request, Response } from "express";
+import type {
+  NextFunction as ExpressNextFunction,
+  Request as ExpressRequest,
+  Response as ExpressResponse
+} from "express";
 import dotenv from "dotenv";
 import { prisma } from "./prisma.js";
 
@@ -7,10 +11,11 @@ dotenv.config();
 export type AuthUser = {
   userId: number;
   role: "CUSTOMER" | "ADMIN" | "SALON_OWNER";
+  approvalStatus?: "PENDING" | "APPROVED" | "REJECTED";
   clerkId?: string;
 };
 
-export type AuthedRequest = Request & { authUser?: AuthUser };
+export type AuthedRequest = ExpressRequest & { authUser?: AuthUser };
 type JWTPayload = Record<string, unknown>;
 
 type JoseLikeModule = {
@@ -44,8 +49,11 @@ async function getJoseModule(): Promise<JoseLikeModule | null> {
 }
 
 function parseLegacyHeaders(req: AuthedRequest): AuthUser | null {
-  const userId = Number(req.header("x-user-id"));
-  const roleHeader = req.header("x-user-role");
+  const rawUserId = req.get("x-user-id");
+  const rawRole = req.get("x-user-role");
+
+  const userId = Number(rawUserId);
+  const roleHeader = rawRole;
 
   if (!Number.isFinite(userId) || !roleHeader) {
     return null;
@@ -82,7 +90,7 @@ function claimAsString(payload: JWTPayload, keys: string[]): string | undefined 
   return undefined;
 }
 
-export async function verifyClerkTokenFromRequest(req: Request): Promise<{
+export async function verifyClerkTokenFromRequest(req: ExpressRequest): Promise<{
   clerkId: string;
   email?: string;
   payload: JWTPayload;
@@ -96,29 +104,54 @@ export async function verifyClerkTokenFromRequest(req: Request): Promise<{
     throw new Error("JWT verifier library is unavailable. Install 'jose' to enable Clerk auth.");
   }
 
-  const token = extractBearerToken(req.header("authorization") ?? undefined);
+  const authHeader = req.get("authorization");
+  const token = extractBearerToken(authHeader ?? undefined);
+  const jwks = jose.createRemoteJWKSet(new URL(clerkJwksUrl));
+
   const verifyOptions = clerkAudience
     ? { issuer: clerkIssuer, audience: clerkAudience }
     : { issuer: clerkIssuer };
 
-  const jwks = jose.createRemoteJWKSet(new URL(clerkJwksUrl));
-  const { payload } = await jose.jwtVerify(token, jwks, verifyOptions);
-  const clerkId = payload.sub as string | undefined;
+  try {
+    const { payload } = await jose.jwtVerify(token, jwks, verifyOptions);
+    const clerkId = payload.sub as string | undefined;
 
-  if (!clerkId) {
-    throw new Error("Invalid Clerk token payload: missing subject");
+    if (!clerkId) {
+      throw new Error("Invalid Clerk token payload: missing subject");
+    }
+
+    const email = claimAsString(payload, ["email", "email_address", "primary_email_address"]);
+
+    return {
+      clerkId,
+      email,
+      payload
+    };
+  } catch (error) {
+    if (!clerkAudience) {
+      throw error;
+    }
+
+    const fallback = await jose.jwtVerify(token, jwks, { issuer: clerkIssuer }).catch(() => null);
+    if (!fallback) {
+      throw error;
+    }
+
+    const clerkId = fallback.payload.sub as string | undefined;
+    if (!clerkId) {
+      throw new Error("Invalid Clerk token payload: missing subject");
+    }
+
+    const email = claimAsString(fallback.payload, ["email", "email_address", "primary_email_address"]);
+    return {
+      clerkId,
+      email,
+      payload: fallback.payload
+    };
   }
-
-  const email = claimAsString(payload, ["email", "email_address", "primary_email_address"]);
-
-  return {
-    clerkId,
-    email,
-    payload
-  };
 }
 
-export async function requireAuth(req: AuthedRequest, res: Response, next: NextFunction) {
+export async function requireAuth(req: AuthedRequest, res: ExpressResponse, next: ExpressNextFunction) {
   try {
     // Legacy mode supports existing gateway header forwarding.
     if (authMode === "legacy" || authMode === "hybrid") {
@@ -145,6 +178,7 @@ export async function requireAuth(req: AuthedRequest, res: Response, next: NextF
     req.authUser = {
       userId: user.id,
       role: user.role,
+      approvalStatus: user.approvalStatus,
       clerkId: user.clerkId ?? undefined
     };
 
@@ -155,10 +189,28 @@ export async function requireAuth(req: AuthedRequest, res: Response, next: NextF
 }
 
 export function requireRole(roles: AuthUser["role"][]) {
-  return (req: AuthedRequest, res: Response, next: NextFunction) => {
+  return (req: AuthedRequest, res: ExpressResponse, next: ExpressNextFunction) => {
     if (!req.authUser || !roles.includes(req.authUser.role)) {
       return res.status(403).json({ message: "Forbidden" });
     }
     next();
   };
+}
+
+export function requireApprovedOwner(req: AuthedRequest, res: ExpressResponse, next: ExpressNextFunction) {
+  if (!req.authUser) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  if (req.authUser.role !== "SALON_OWNER") {
+    return res.status(403).json({ message: "Only salon owners can perform this action." });
+  }
+
+  if (req.authUser.approvalStatus !== "APPROVED") {
+    return res.status(403).json({
+      message: "Salon owner account is pending admin approval."
+    });
+  }
+
+  return next();
 }

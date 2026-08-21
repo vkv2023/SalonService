@@ -63,7 +63,8 @@ app.get("/api/public-config", (_req: Request, res: any) => {
   res.json({
     authMode,
     clerkPublishableKey,
-    clerkIssuer
+    clerkIssuer,
+    clerkAudience: process.env.CLERK_AUDIENCE ?? ""
   });
 });
 

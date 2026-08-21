@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import { prisma } from "../shared/prisma.js";
-import { requireAuth, requireRole } from "../shared/auth.js";
+import { requireApprovedOwner, requireAuth, requireRole } from "../shared/auth.js";
 import type { AuthedRequest } from "../shared/auth.js";
 
 export const serviceOfferingRouter = Router();
@@ -53,6 +53,7 @@ serviceOfferingRouter.post(
   "/api/service-offering/salon-owner",
   requireAuth,
   requireRole(["SALON_OWNER", "ADMIN"]),
+  requireApprovedOwner,
   async (req: AuthedRequest, res: Response) => {
     const parsed = serviceSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -68,6 +69,7 @@ serviceOfferingRouter.post(
   "/api/service-offering/salon-owner/:id",
   requireAuth,
   requireRole(["SALON_OWNER", "ADMIN"]),
+  requireApprovedOwner,
   async (req: AuthedRequest, res: Response) => {
     const id = Number(req.params.id);
     const parsed = serviceSchema.partial().safeParse(req.body);
